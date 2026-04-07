@@ -24,8 +24,7 @@ phases:
       - IMAGE_TAG=latest     # 今回は latest を使用（本番では SHA タグ推奨）
                              # Gitにおいて特定のコミットを一意に識別するためのSHA-1ハッシュ値のこと
 
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION \
-        | docker login --username AWS --password-stdin $REPOSITORY_URI
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
          # ECR に Docker push するためのログイン処理
 
   build:
@@ -41,9 +40,8 @@ phases:
       # ビルドした Docker イメージを ECR に push
 
       - echo "Creating imagedefinitions.json..."
-      - printf '[{"name":"NextjsContainer","imageUri":"%s"}]' \
-        $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
-        # ECS Deploy Action が参照する JSON を生成.※このJSONを見て、そのイメージを使うのかを判断。
+      - |
+        printf '[{"name":"NextjsContainer","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
 
 artifacts:
   files:
