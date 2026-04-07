@@ -1,43 +1,50 @@
 version: 0.2
 
 env:
-  shell: bash
+  shell: bash   # CodeBuild の実行シェルを bash に指定
 
 phases:
   install:
     runtime-versions:
-      nodejs: 20
+      nodejs: 20    # Node.js 20 を使用（Next.js のビルドに必要）
     commands:
       - echo "Installing dependencies..."
-      - npm ci
+      - npm ci    # package-lock.json に基づいて依存関係をクリーンインストールt 
 
   pre_build:
     commands:
       - echo "Running lint..."
-      - npm run lint
+      - npm run lint    # 静的解析（品質チェック）
 
       - echo "Running tests..."
-      - npm test
+      - npm test        # テストコード実行（品質チェック）
+      # → lint/test が失敗するとここでパイプラインが停止、デプロイされない
 
       - echo "Logging in to Amazon ECR..."
-      - IMAGE_TAG=latest
+      - IMAGE_TAG=latest     # 今回は latest を使用（本番では SHA タグ推奨）
+                             # Gitにおいて特定のコミットを一意に識別するためのSHA-1ハッシュ値のこと
+
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION \
         | docker login --username AWS --password-stdin $REPOSITORY_URI
+         # ECR に Docker push するためのログイン処理
 
   build:
     commands:
       - echo "Building Docker image..."
       - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
+       # Next.js アプリの Docker イメージをビルド
 
   post_build:
     commands:
       - echo "Pushing Docker image..."
       - docker push $REPOSITORY_URI:$IMAGE_TAG
+      # ビルドした Docker イメージを ECR に push
 
       - echo "Creating imagedefinitions.json..."
       - printf '[{"name":"NextjsContainer","imageUri":"%s"}]' \
         $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+        # ECS Deploy Action が参照する JSON を生成.※このJSONを見て、そのイメージを使うのかを判断。
 
 artifacts:
   files:
-    - imagedefinitions.json
+    - imagedefinitions.json    # CodePipeline の Deploy ステージに渡す成果物
